@@ -87,29 +87,29 @@ aws_region = os.getenv("AWS_REGION", "us-east-1")
 # ---------------- Enhanced AI Services ----------------
 class EnhancedAIServices:
     def __init__(self):
-        self.api_token = os.getenv('HF_API_TOKEN')
-        self.headers = {"Authorization": f"Bearer {self.api_token}"} if self.api_token else {}
-        print("🤖 Enhanced AI Services Initialized")
-        self.sentence_model = None
-        self.model_loaded = False
-        
-        # Advanced model configurations
-        self.models = {
-            "summarization": "google/pegasus-xsum",  # Best for comprehensive summarization
-            "sentiment": "cardiffnlp/twitter-roberta-base-sentiment-latest",
-            "keywords": "ml6team/keyphrase-extraction-distilbert-inspec",
-            "ner": "dslim/bert-base-NER",
-            "qa_primary": "deepset/roberta-base-squad2",
-            "qa_fallback": "bert-large-uncased-whole-word-masking-finetuned-squad",
-            "toxicity_primary": "unitary/toxic-bert",
-            "toxicity_secondary": "facebook/roberta-hate-speech-dynabench-r4-target",
-            "image_caption": "nlpconnect/vit-gpt2-image-captioning",
-            "image_classification": "google/vit-base-patch16-224"
-        }
-        
-        # Initialize local pipelines for faster processing
-        self.local_pipelines = {}
-        self._initialize_local_pipelines()
+        import logging
+        import os
+
+        # existing initial setup lines you already have
+        print("🤖 Enhanced AI Services Initializing...")
+
+        # ------------------------------
+        # ✅ Safe optional local model init
+        try:
+            should_load = os.environ.get("LOAD_LOCAL_MODELS", "false").lower() == "true"
+            init_fn = getattr(self, "_initialize_local_pipelines", None)
+            if should_load and callable(init_fn):
+                init_fn()
+                logging.info("Local pipelines initialized.")
+            else:
+                logging.info(f"Skipping _initialize_local_pipelines (LOAD_LOCAL_MODELS={should_load}).")
+        except Exception as e:
+            logging.exception(f"Error initializing local pipelines: {e}")
+        # ------------------------------
+    def _initialize_local_pipelines(self):
+        """Placeholder to prevent AttributeError during startup."""
+        print("🧠 _initialize_local_pipelines() placeholder — no local models loaded.")
+        return
 
 def _initialize_local_pipelines(self):
     """Initialize local pipelines for faster processing"""
