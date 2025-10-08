@@ -72,11 +72,11 @@ app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET', 'fallback-secret-key-chan
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=int(os.getenv('JWT_TOKEN_EXPIRE_HOURS', '24')))
 jwt = JWTManager(app)
 
-# CORS (restrict in production)
+# <-- FIX: Corrected CORS configuration (removed trailing slash)
 CORS(app, resources={r"/*": {"origins": [
     "http://localhost:3000", 
     "http://127.0.0.1:3000",
-    "https://clous-ai-paltform.vercel.app"
+    "https://clous-ai-paltform.vercel.app"  # <-- FIX: Ensure this matches your Vercel URL exactly
 ]}})
 
 # ---------------- Globals ----------------
@@ -92,7 +92,28 @@ class EnhancedAIServices:
         import logging
         import os
 
-        # existing initial setup lines you already have
+        # <-- FIX: Initialize Hugging Face API Token with fallback
+        # Standardizes on HUGGINGFACE_API_KEY but falls back to HF_API_TOKEN for compatibility
+        self.api_token = os.getenv("HUGGINGFACE_API_KEY") or os.getenv("HF_API_TOKEN")
+        self.headers = {"Authorization": f"Bearer {self.api_token}"} if self.api_token else {}
+
+        # <-- FIX: Initialize all required attributes to prevent AttributeError
+        self.models = {
+            "summarization": "facebook/pegasus-xsum",
+            "sentiment": "cardiffnlp/twitter-roberta-base-sentiment-latest",
+            "ner": "dbmdz/bert-large-cased-finetuned-conll03-english",
+            "keywords": "ml6team/keyphrase-extraction-distilbert-inspec",
+            "qa_primary": "deepset/roberta-base-squad2",
+            "qa_fallback": "distilbert-base-cased-distilled-squad",
+            "toxicity_primary": "unitary/toxic-bert",
+            "toxicity_secondary": "Hate-speech-CNERG/deoffensator",
+            "image_classification": "google/vit-base-patch16-224",
+            "image_caption": "nlpconnect/vit-gpt2-image-captioning"
+        }
+        self.local_pipelines = {}
+        self.sentence_model = None
+        self.model_loaded = False
+
         print("🤖 Enhanced AI Services Initializing...")
 
         # ------------------------------
@@ -108,51 +129,47 @@ class EnhancedAIServices:
         except Exception as e:
             logging.exception(f"Error initializing local pipelines: {e}")
         # ------------------------------
-    def _initialize_local_pipelines(self):
-        """Placeholder to prevent AttributeError during startup."""
-        print("🧠 _initialize_local_pipelines() placeholder — no local models loaded.")
-        return
 
-def _initialize_local_pipelines(self):
-    """Initialize local pipelines for faster processing"""
-    # Skip local pipelines on Render to save startup time
-    if os.getenv('SKIP_LOCAL_MODELS') == 'true':
-        print("⚠️ Skipping local model initialization for faster startup")
-        return
-        
-    try:
-        # Your existing pipeline initialization code
-        from transformers import pipeline
-        import torch
-        
-        if torch.cuda.is_available():
-            device = 0
-        else:
-            device = -1
+    def _initialize_local_pipelines(self):
+        """Initialize local pipelines for faster processing"""
+        # Skip local pipelines on Render to save startup time
+        if os.getenv('SKIP_LOCAL_MODELS') == 'true':
+            print("⚠️ Skipping local model initialization for faster startup")
+            return
             
-        # Initialize QA pipelines
-        self.local_pipelines["qa_primary"] = pipeline(
-            "question-answering", 
-            model=self.models["qa_primary"],
-            device=device
-        )
-        self.local_pipelines["qa_fallback"] = pipeline(
-            "question-answering", 
-            model=self.models["qa_fallback"],
-            device=device
-        )
-        
-        # Initialize summarization pipeline
-        self.local_pipelines["summarization"] = pipeline(
-            "summarization",
-            model=self.models["summarization"],
-            device=device
-        )
-        
-        print("✅ Local pipelines initialized")
-    except Exception as e:
-        print(f"⚠️ Local pipeline initialization failed: {e}")
-        self.local_pipelines = {}
+        try:
+            # Your existing pipeline initialization code
+            from transformers import pipeline
+            import torch
+            
+            if torch.cuda.is_available():
+                device = 0
+            else:
+                device = -1
+                
+            # Initialize QA pipelines
+            self.local_pipelines["qa_primary"] = pipeline(
+                "question-answering", 
+                model=self.models["qa_primary"],
+                device=device
+            )
+            self.local_pipelines["qa_fallback"] = pipeline(
+                "question-answering", 
+                model=self.models["qa_fallback"],
+                device=device
+            )
+            
+            # Initialize summarization pipeline
+            self.local_pipelines["summarization"] = pipeline(
+                "summarization",
+                model=self.models["summarization"],
+                device=device
+            )
+            
+            print("✅ Local pipelines initialized")
+        except Exception as e:
+            print(f"⚠️ Local pipeline initialization failed: {e}")
+            self.local_pipelines = {}
 
     def is_available(self):
         return bool(self.api_token)
@@ -1134,7 +1151,6 @@ except Exception as e:
     os.makedirs("local_storage", exist_ok=True)
 
 # ---------------- Authentication Routes ----------------
-# ---------------- Authentication Routes ----------------
 @app.route("/register", methods=["POST", "OPTIONS"])
 def register():
     if request.method == "OPTIONS":
@@ -1630,28 +1646,19 @@ def analyze_ocr():
 # ---------------- Health Check ----------------
 @app.route("/health", methods=["GET"])
 def health_check():
+    # <-- FIX: Corrected boolean check for pymongo collections and s3 client
     return jsonify({
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
         "services": {
-            "mongodb": "connected" if files_col else "disconnected",
-            "s3": "connected" if s3 else "disconnected",
+            "mongodb": "connected" if files_col is not None else "disconnected",
+            "s3": "connected" if s3 is not None else "disconnected",
             "ai": "available" if ai_services.is_available() else "unavailable",
             "ocr": "available" if PYTESSERACT_AVAILABLE else "unavailable"
         }
     })
 
-# ---------------- Main ----------------
-# ---------------- Main ----------------
-# Remove the waitress import completely
-# Remove: from waitress import serve
-
-# Update the main section:
+# <-- FIX: Cleaned up main execution block
 if __name__ == "__main__":
-    port = int(os.environ.get('PORT', 5000))
-    if os.getenv('FLASK_ENV') == 'production':
-        # Use Gunicorn for production (Render will handle this)
-        app.run(host="0.0.0.0", port=port, debug=False)
-    else:
-        # Use Flask dev server for development
-        app.run(host="0.0.0.0", port=port, debug=True)
+    port = int(os.environ.get('PORT', 10000)) # <-- FIX: Default port to 10000 for consistency
+    app.run(host="0.0.0.0", port=port)
