@@ -1059,15 +1059,14 @@ def _initialize_local_pipelines(self):
 ai_services = EnhancedAIServices()
 # ---------------- MongoDB Connection ----------------
 
+from pymongo import MongoClient
 
 try:
     mongo_uri = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
     client = MongoClient(
         mongo_uri,
         tls=True,
-        tlsAllowInvalidCertificates=True,
-        tlsCAFile=None,
-        ssl_cert_reqs=ssl.CERT_NONE
+        tlsAllowInvalidCertificates=True
     )
     db = client["nasuni"]
     files_col = db["files"]
