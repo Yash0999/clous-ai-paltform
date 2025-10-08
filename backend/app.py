@@ -1063,13 +1063,17 @@ import os, bcrypt
 from datetime import datetime
 
 try:
-    # Get Mongo URI from environment (Render)
-    mongo_uri = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
+    mongo_uri = os.getenv("MONGO_URI")
 
-    # Connect to MongoDB Atlas
-    client = MongoClient(mongo_uri, tls=True, tlsAllowInvalidCertificates=True)
+    # ✅ No need for tlsAllowInvalidCertificates unless using self-signed certs
+    client = MongoClient(
+        mongo_uri,
+        tls=True,
+        tlsAllowInvalidCertificates=False,
+        serverSelectionTimeoutMS=20000
+    )
 
-    db = client["nasuni"]
+    db = client.get_database()  # Automatically selects from URI (/nasuni)
     files_col = db["files"]
     users_col = db["users"]
 
@@ -1077,7 +1081,7 @@ try:
     client.admin.command('ping')
     print("✅ MongoDB connected successfully")
 
-    # Ensure default admin exists
+    # Create default admin if none exists
     if users_col.count_documents({}) == 0:
         admin_password = bcrypt.hashpw("admin123".encode('utf-8'), bcrypt.gensalt())
         users_col.insert_one({
