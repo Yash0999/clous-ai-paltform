@@ -1058,16 +1058,17 @@ def _initialize_local_pipelines(self):
 # Initialize AI services
 ai_services = EnhancedAIServices()
 # ---------------- MongoDB Connection ----------------
-
 from pymongo import MongoClient
+import os, bcrypt
+from datetime import datetime
 
 try:
+    # Get Mongo URI from environment (Render)
     mongo_uri = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
-    client = MongoClient(
-        mongo_uri,
-        tls=True,
-        tlsAllowInvalidCertificates=True
-    )
+
+    # Connect to MongoDB Atlas
+    client = MongoClient(mongo_uri, tls=True, tlsAllowInvalidCertificates=True)
+
     db = client["nasuni"]
     files_col = db["files"]
     users_col = db["users"]
@@ -1076,7 +1077,7 @@ try:
     client.admin.command('ping')
     print("✅ MongoDB connected successfully")
 
-    # Create default admin if none exists
+    # Ensure default admin exists
     if users_col.count_documents({}) == 0:
         admin_password = bcrypt.hashpw("admin123".encode('utf-8'), bcrypt.gensalt())
         users_col.insert_one({
@@ -1090,6 +1091,7 @@ try:
 
 except Exception as e:
     print(f"❌ MongoDB connection failed: {e}")
+
 
 
 # ---------------- AWS S3 Configuration ----------------
