@@ -71,7 +71,7 @@ const theme = createTheme({
 
 // Make sure this line exists:
 const api = axios.create({ 
-  baseURL: process.env.REACT_APP_API_URL || "http://localhost:5000" 
+  baseURL: process.env.REACT_APP_API_URL || "http://localhost:1000" 
 });
 api.interceptors.request.use(config => {
   const token = localStorage.getItem("token");
