@@ -1,4 +1,6 @@
-
+import shutil, logging
+if not shutil.which("tesseract"):
+    logging.warning("⚠️ Tesseract not installed — OCR features disabled.")
 import os
 import re
 import sys
@@ -13,7 +15,7 @@ from flask_cors import CORS
 from flask_jwt_extended import (
     JWTManager, create_access_token, jwt_required, get_jwt_identity
 )
-
+import ssl
 from pymongo import MongoClient
 from werkzeug.utils import secure_filename
 
@@ -1055,18 +1057,27 @@ def _initialize_local_pipelines(self):
 
 # Initialize AI services
 ai_services = EnhancedAIServices()
-
 # ---------------- MongoDB Connection ----------------
+
+
 try:
     mongo_uri = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
-    client = MongoClient(mongo_uri)
+    client = MongoClient(
+        mongo_uri,
+        tls=True,
+        tlsAllowInvalidCertificates=True,
+        tlsCAFile=None,
+        ssl_cert_reqs=ssl.CERT_NONE
+    )
     db = client["nasuni"]
     files_col = db["files"]
     users_col = db["users"]
+
+    # Test connection
     client.admin.command('ping')
     print("✅ MongoDB connected successfully")
 
-    # create default admin if none
+    # Create default admin if none exists
     if users_col.count_documents({}) == 0:
         admin_password = bcrypt.hashpw("admin123".encode('utf-8'), bcrypt.gensalt())
         users_col.insert_one({
@@ -1077,8 +1088,10 @@ try:
             "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         })
         print("✅ Default admin user created: admin@nasuni.com / admin123")
+
 except Exception as e:
     print(f"❌ MongoDB connection failed: {e}")
+
 
 # ---------------- AWS S3 Configuration ----------------
 try:
