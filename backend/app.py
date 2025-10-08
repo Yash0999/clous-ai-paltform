@@ -1134,19 +1134,27 @@ except Exception as e:
     os.makedirs("local_storage", exist_ok=True)
 
 # ---------------- Authentication Routes ----------------
+# ---------------- Authentication Routes ----------------
 @app.route("/register", methods=["POST", "OPTIONS"])
 def register():
     if request.method == "OPTIONS":
         return jsonify({"status": "preflight"}), 200
     try:
         data = request.get_json()
+        if not data:
+            return jsonify({"error": "Invalid JSON"}), 400
+
+        # Use .get() to safely access keys
         email = data.get('email')
         password = data.get('password')
         name = data.get('name')
         role = data.get('role', 'user')
 
-        if not email or not password:
-            return jsonify({"error": "Email and password required"}), 400
+        # --- THIS IS THE CRITICAL FIX ---
+        # Check if any of the required fields are missing or are just empty strings
+        if not email or not password or not name:
+            return jsonify({"error": "Missing name, email, or password"}), 400
+        # ---------------------------------
 
         if users_col.find_one({"email": email}):
             return jsonify({"error": "User already exists"}), 400
@@ -1168,7 +1176,7 @@ def register():
         }), 201
     except Exception as e:
         return jsonify({"error": f"Registration failed: {str(e)}"}), 500
-
+    
 @app.route("/login", methods=["POST", "OPTIONS"])
 def login():
     if request.method == "OPTIONS":
